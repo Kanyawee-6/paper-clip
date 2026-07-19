@@ -117,74 +117,68 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="text/javascript">
-    // ลิงก์โมเดลของคุณจาก Teachable Machine
-    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";
+    // ลิงก์โมเดลของคุณจาก Teachable Machine[cite: 1]
+    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";[cite: 1]
 
     let model, webcam, labelContainer, maxPredictions;
     let predictInterval;
 
     async function init() {
-        // ปิดปุ่ม Start เพื่อไม่ให้กดซ้ำตอนกำลังโหลด
+        // ล็อคปุ่มไม่ให้กดซ้ำ
         document.getElementById("start-btn").disabled = true;
         document.getElementById("start-btn").innerText = "Loading...";
 
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
+        const modelURL = URL + "model.json";[cite: 1]
+        const metadataURL = URL + "metadata.json";[cite: 1]
 
-        // โหลดโมเดลและ Metadata
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+        // โหลดโมเดล
+        model = await tmImage.load(modelURL, metadataURL);[cite: 1]
+        maxPredictions = model.getTotalClasses();[cite: 1]
 
         // ตั้งค่ากล้อง Webcam
-        const flip = true; 
-        webcam = new tmImage.Webcam(200, 200, flip); 
-        await webcam.setup(); 
-        await webcam.play();
+        const flip = true;[cite: 1]
+        webcam = new tmImage.Webcam(200, 200, flip);[cite: 1]
+        await webcam.setup();[cite: 1]
+        await webcam.play();[cite: 1]
 
-        // นำภาพจากกล้องใส่ลงในหน้าเว็บ
-        document.getElementById("webcam-container").innerHTML = ""; // เคลียร์พื้นหลังเดิม
-        document.getElementById("webcam-container").appendChild(webcam.canvas);
+        // นำแคนวาสของกล้องไปแปะบนหน้าเว็บ
+        document.getElementById("webcam-container").innerHTML = "";
+        document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
         
-        // เตรียมพื้นที่สำหรับแสดงผลลัพธ์
-        labelContainer = document.getElementById("label-container");
-        labelContainer.innerHTML = ""; // เคลียร์ค่าเก่าหากมี
-        for (let i = 0; i < maxPredictions; i++) {
+        // สร้างป้ายแสดงผลลัพธ์
+        labelContainer = document.getElementById("label-container");[cite: 1]
+        labelContainer.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
             const div = document.createElement("div");
             div.className = "prediction-item";
-            labelContainer.appendChild(div);
+            labelContainer.appendChild(div);[cite: 1]
         }
 
-        document.getElementById("start-btn").innerText = "Running...";
+        document.getElementById("start-btn").innerText = "Watching (Every 3s)";
 
-        // อัปเดตเฟรมภาพเคลื่อนไหวของกล้องตลอดเวลาเพื่อให้ภาพลื่นไหล (แต่ยังไม่ทำนายผล)
-        window.requestAnimationFrame(updateWebcamFrame);
+        // ลบ window.requestAnimationFrame(loop) ออกทั้งหมด เพื่อไม่ให้ทำนายผลแบบ Real-time
+        
+        // สั่งให้กล้องอัปเดตภาพและทำนายผลทันทีกรณีเริ่มงานครั้งแรก
+        await processEveryThreeSeconds();
 
-        // ทำนายผลครั้งแรกทันที
-        await loop();
-
-        // ตั้งเวลาให้ทำการดึงภาพมาทำนายผล (Predict) ทุก ๆ 3 วินาที (3000 มิลลิวินาที)
-        predictInterval = setInterval(loop, 3000);
+        // ตั้งเวลาให้ฟังก์ชันทำงาน "เฉพาะ" ทุก ๆ 3 วินาทีเท่านั้น
+        predictInterval = setInterval(processEveryThreeSeconds, 3000);
     }
 
-    // ฟังก์ชันสำหรับอัปเดตภาพของกล้องให้เคลื่อนไหวเป็นปกติ
-    function updateWebcamFrame() {
-        webcam.update();
-        window.requestAnimationFrame(updateWebcamFrame);
+    // ฟังก์ชันรวบยอด: อัปเดตเฟรมภาพกล้องใหม่ล่าสุด ณ วินาทีนั้น + สั่งทำนายผลทันที
+    async function processEveryThreeSeconds() {
+        if (webcam) {
+            webcam.update(); // ดึงภาพเฟรมปัจจุบันจากกล้อง ณ วินาทีที่ครบกำหนด[cite: 1]
+            await predict(); // สั่งทำนายผลภาพนั้น[cite: 1]
+        }
     }
 
-    async function loop() {
-        // ดึงภาพปัจจุบันจากกล้องไปทำนายผล
-        await predict();
-    }
-
-    // ฟังก์ชันทำนายผล
+    // ฟังก์ชันทำนายผลและแปลงค่าเป็นเปอร์เซ็นต์
     async function predict() {
-        const prediction = await model.predict(webcam.canvas);
-        for (let i = 0; i < maxPredictions; i++) {
-            // คำนวณเปอร์เซ็นต์ความน่าจะเป็น
+        const prediction = await model.predict(webcam.canvas);[cite: 1]
+        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
             const probabilityPercent = (prediction[i].probability * 100).toFixed(0);
             
-            // แสดงผลชื่อคลาสและเปอร์เซ็นต์ในรูปแบบที่สวยงาม
             labelContainer.childNodes[i].innerHTML = `
                 <span>${prediction[i].className}</span>
                 <strong>${probabilityPercent}%</strong>
