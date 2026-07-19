@@ -4,76 +4,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teachable Machine Image Model</title>
-    
-    <!-- นำเข้า Google Fonts เพื่อความสวยงาม -->
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-    
     <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+        }
+
         body {
-            font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
             min-height: 100vh;
             margin: 0;
-            color: #333;
+            padding: 20px;
         }
 
         .container {
-            background-color: white;
+            background-color: var(--card-bg);
             padding: 2.5rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             text-align: center;
             max-width: 450px;
             width: 100%;
-            box-sizing: border-box;
         }
 
         h1 {
             font-size: 1.8rem;
             margin-bottom: 1.5rem;
-            color: #4a5568;
             font-weight: 600;
+            color: #0f172a;
         }
 
         .btn-start {
-            background-color: #4f46e5;
+            background-color: var(--primary-color);
             color: white;
             border: none;
             padding: 0.75rem 2rem;
             font-size: 1rem;
-            font-radius: 50px;
-            border-radius: 50px;
+            font-weight: 500;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);
             margin-bottom: 1.5rem;
         }
 
         .btn-start:hover {
-            background-color: #4338ca;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
         }
 
         .btn-start:active {
-            transform: translateY(0);
+            transform: translateY(1px);
         }
 
         #webcam-container {
-            margin: 1rem auto;
-            border-radius: 15px;
+            margin: 1.5rem auto;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             width: 250px;
             height: 250px;
-            background-color: #edf2f7;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            background-color: #e2e8f0;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
         }
 
         #webcam-container canvas {
@@ -83,37 +86,28 @@
         }
 
         #label-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
             margin-top: 1.5rem;
             text-align: left;
         }
 
-        /* ดีไซน์แถบแสดงผลการทำนาย */
-        .prediction-item {
-            margin-bottom: 10px;
-        }
-
-        .prediction-label {
+        .prediction-bar {
+            background-color: #f1f5f9;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
             display: flex;
             justify-content: space-between;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
-            font-weight: 600;
-            color: #4a5568;
+            align-items: center;
+            font-weight: 500;
+            border-left: 4px solid var(--primary-color);
         }
 
-        .progress-bar-bg {
-            background-color: #e2e8f0;
-            border-radius: 8px;
-            overflow: hidden;
-            height: 12px;
-            width: 100%;
-        }
-
-        .progress-bar-fill {
-            background-color: #10b981;
-            height: 100%;
-            width: 0%;
-            transition: width 0.5s ease-out; /* เลื่อนแถบแบบนุ่มนวล */
+        .probability {
+            font-family: monospace;
+            font-size: 1.1rem;
+            color: var(--primary-color);
         }
     </style>
 </head>
@@ -121,112 +115,75 @@
 
 <div class="container">
     <h1>Teachable Machine Image Model</h1>
-    <button type="button" class="btn-start" onclick="init()">เปิดกล้องเริ่มต้นใช้งาน</button>
-    
-    <div id="webcam-container">
-        <!-- เว็บแคมจะมาแสดงตรงนี้ -->
-        <span style="color: #a0aec0; font-size: 0.9rem;">กดปุ่มด้านบนเพื่อเปิดกล้อง</span>
-    </div>
-    
-    <div id="label-container"></div>
+    <button type="button" class="btn-start" id="start-btn" onclick="init()">Start Camera</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>[cite: 1]
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>[cite: 1]
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>[cite: 1]
 <script type="text/javascript">
-    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";
+    // ลิงก์โมเดลของคุณจาก Teachable Machine
+    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";[cite: 1]
 
     let model, webcam, labelContainer, maxPredictions;
-    let predictInterval; // ตัวแปรสำหรับเก็บคำสั่งตั้งเวลา
+    let predictInterval;
 
     async function init() {
-        // เปลี่ยนข้อความบนปุ่มเมื่อกดใช้งาน
-        document.querySelector('.btn-start').innerText = "กำลังโหลดโมเดล...";
-        document.querySelector('.btn-start').disabled = true;
+        // ซ่อนปุ่มหลังจากกดเพื่อป้องกันการกดซ้ำ
+        document.getElementById("start-btn").style.display = "none";
 
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
+        const modelURL = URL + "model.json";[cite: 1]
+        const metadataURL = URL + "metadata.json";[cite: 1]
 
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+        // โหลดโมเดล
+        model = await tmImage.load(modelURL, metadataURL);[cite: 1]
+        maxPredictions = model.getTotalClasses();[cite: 1]
 
-        // ตั้งค่าเว็บแคม (ปรับขนาดเป็น 250x250 ให้พอดีกับกรอบที่เราแต่งไว้)
-        const flip = true; 
-        webcam = new tmImage.Webcam(250, 250, flip); 
-        await webcam.setup(); 
-        await webcam.play();
+        // ตั้งค่ากล้อง (ปรับเป็น 250x250 ให้เข้ากับดีไซน์ใหม่)
+        const flip = true;[cite: 1]
+        webcam = new tmImage.Webcam(250, 250, flip);[cite: 1]
+        await webcam.setup();[cite: 1]
+        await webcam.play();[cite: 1]
         
-        // วนลูปเพื่ออัปเดตภาพเคลื่อนไหวบนหน้าจอให้ลื่นไหล (แต่ยังไม่ทำนายผลในนี้)
+        // ใช้ requestAnimationFrame สำหรับอัปเดตภาพเคลื่อนไหวของกล้องให้ลื่นไหล
         window.requestAnimationFrame(loop);
 
-        // แสดงผลเว็บแคมในจุดที่กำหนด
-        const webcamContainer = document.getElementById("webcam-container");
-        webcamContainer.innerHTML = ""; // ล้างข้อความเก่าออก
-        webcamContainer.appendChild(webcam.canvas);
+        // แสดงผลหน้าจอกล้อง
+        document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
+        labelContainer = document.getElementById("label-container");[cite: 1]
         
-        // สร้างโครงสร้างแถบความคืบหน้าสำหรับแต่ละ Class
-        labelContainer = document.getElementById("label-container");
-        labelContainer.innerHTML = ""; // ล้างของเก่าถ้ามี
-        for (let i = 0; i < maxPredictions; i++) {
-            const item = document.createElement("div");
-            item.className = "prediction-item";
-            item.innerHTML = `
-                <div class="prediction-label">
-                    <span class="class-name">-</span>
-                    <span class="class-prob">0%</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill"></div>
-                </div>
+        // สร้างโครงสร้างแถบแสดงผลลัพธ์ที่สวยงาม
+        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+            const bar = document.createElement("div");
+            bar.className = "prediction-bar";
+            bar.innerHTML = `
+                <span class="class-name">Loading...</span>
+                <span class="probability">0.00</span>
             `;
-            labelContainer.appendChild(item);
+            labelContainer.appendChild(bar);
         }
 
-        // ซ่อนหรือเปลี่ยนสถานะปุ่มเมื่อโหลดเสร็จเรียบร้อย
-        document.querySelector('.btn-start').innerText = "กำลังทำงาน...";
-        
-        // เคลียร์ Interval เก่าออกก่อนป้องกันการรันซ้อนกัน
-        if(predictInterval) clearInterval(predictInterval);
-        
-        // สั่งให้ทำนายผล (predict) ทุกๆ 3000 มิลลิวินาที (3 วินาที)
+        // สั่งให้ฟังก์ชันตรวจจับภาพทำงานทุกๆ 3 วินาที (3000 มิลลิวินาที)
         predictInterval = setInterval(predict, 3000);
-        
-        // สั่งให้ทำนายครั้งแรกทันทีโดยไม่ต้องรอให้ครบ 3 วินาทีแรก
-        predict();
     }
 
     async function loop() {
-        webcam.update(); // สั่งอัปเดตภาพจากกล้องให้เคลื่อนไหวตลอดเวลาแบบ Real-time
-        window.requestAnimationFrame(loop);
+        webcam.update(); // อัปเดตเฟรมของกล้องให้ภาพขยับตลอดเวลา[cite: 1]
+        window.requestAnimationFrame(loop);[cite: 1]
     }
 
+    // ฟังก์ชันทำนายผลลัพธ์ที่จะถูกเรียกทุกๆ 3 วินาที
     async function predict() {
-        if (!model || !webcam) return;
-        
-        const prediction = await model.predict(webcam.canvas);
-        
-        for (let i = 0; i < maxPredictions; i++) {
-            const className = prediction[i].className;
-            const probability = prediction[i].probability;
-            const percentage = (probability * 100).toFixed(0) + "%";
+        const prediction = await model.predict(webcam.canvas);[cite: 1]
+        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+            const classNameElement = labelContainer.childNodes[i].querySelector('.class-name');
+            const probabilityElement = labelContainer.childNodes[i].querySelector('.probability');
             
-            // อัปเดตข้อมูลและขยับแถบสถานะตามความน่าจะเป็น
-            const item = labelContainer.childNodes[i];
-            item.querySelector('.class-name').innerText = className;
-            item.querySelector('.class-prob').innerText = percentage;
-            item.querySelector('.progress-bar-fill').style.width = percentage;
-            
-            // เปลี่ยนสีแถบตามความมั่นใจ (มั่นใจมาก > 70% เป็นสีเขียว, น้อยกว่านั้นเป็นสีส้ม/เหลือง)
-            if (probability > 0.7) {
-                item.querySelector('.progress-bar-fill').style.backgroundColor = "#10b981";
-            } else if (probability > 0.3) {
-                item.querySelector('.progress-bar-fill').style.backgroundColor = "#f59e0b";
-            } else {
-                item.querySelector('.progress-bar-fill').style.backgroundColor = "#ef4444";
-            }
+            classNameElement.innerText = prediction[i].className;
+            probabilityElement.innerText = (prediction[i].probability * 100).toFixed(0) + "%"; 
         }
     }
 </script>
-
 </body>
 </html>
