@@ -79,10 +79,14 @@
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
             border: 4px solid #fff;
             outline: 1px solid #e2e8f0;
+            position: relative;
         }
 
-        #webcam-container canvas {
+        #myCanvas {
             display: block;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* สลับซ้ายขวาให้เหมือนกระจกเงา */
         }
 
         #label-container {
@@ -110,73 +114,90 @@
 <div class="container">
     <h2>Teachable Machine Image Model</h2>
     <button type="button" class="btn-start" id="start-btn" onclick="init()">Start Camera</button>
-    <div id="webcam-container"></div>
+    
+    <!-- ซ่อน element video ดั้งเดิมไว้เบื้องหลัง ไม่ให้แสดงผลสด -->
+    <video id="myVideo" autoplay playsinline style="display:none;"></video>
+    
+    <div id="webcam-container">
+        <!-- ใช้ Canvas แสดงภาพนิ่งที่จะอัปเดตเฉพาะทุกๆ 3 วินาที -->
+        <canvas id="myCanvas" width="200" height="200"></canvas>
+    </div>
+    
     <div id="label-container"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="text/javascript">
-    // ลิงก์โมเดลของคุณจาก Teachable Machine[cite: 1]
-    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";[cite: 1]
+    const URL = "https://teachablemachine.withgoogle.com/models/vNuveE7hV/";
 
-    let model, webcam, labelContainer, maxPredictions;
+    let model, labelContainer, maxPredictions;
+    let videoElement, canvasElement, canvasCtx;
     let predictInterval;
 
     async function init() {
-        // ล็อคปุ่มไม่ให้กดซ้ำ
         document.getElementById("start-btn").disabled = true;
         document.getElementById("start-btn").innerText = "Loading...";
 
-        const modelURL = URL + "model.json";[cite: 1]
-        const metadataURL = URL + "metadata.json";[cite: 1]
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-        // โหลดโมเดล
-        model = await tmImage.load(modelURL, metadataURL);[cite: 1]
-        maxPredictions = model.getTotalClasses();[cite: 1]
+        // 1. โหลดโมเดล Teachable Machine
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-        // ตั้งค่ากล้อง Webcam
-        const flip = true;[cite: 1]
-        webcam = new tmImage.Webcam(200, 200, flip);[cite: 1]
-        await webcam.setup();[cite: 1]
-        await webcam.play();[cite: 1]
+        // 2. เรียกเปิดกล้องผ่านเบราว์เซอร์และผูกเข้ากับ HTML5 Video
+        videoElement = document.getElementById("myVideo");
+        canvasElement = document.getElementById("myCanvas");
+        canvasCtx = canvasElement.getContext("2d");
 
-        // นำแคนวาสของกล้องไปแปะบนหน้าเว็บ
-        document.getElementById("webcam-container").innerHTML = "";
-        document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
-        
-        // สร้างป้ายแสดงผลลัพธ์
-        labelContainer = document.getElementById("label-container");[cite: 1]
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 200, height: 200 } 
+            });
+            videoElement.srcObject = stream;
+        } catch (err) {
+            alert("ไม่สามารถเข้าถึงกล้องได้: " + err);
+            document.getElementById("start-btn").disabled = false;
+            document.getElementById("start-btn").innerText = "Start Camera";
+            return;
+        }
+
+        // 3. เตรียม UI สำหรับแสดงข้อมูลทำนาย
+        labelContainer = document.getElementById("label-container");
         labelContainer.innerHTML = "";
-        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+        for (let i = 0; i < maxPredictions; i++) {
             const div = document.createElement("div");
             div.className = "prediction-item";
-            labelContainer.appendChild(div);[cite: 1]
+            labelContainer.appendChild(div);
         }
 
-        document.getElementById("start-btn").innerText = "Watching (Every 3s)";
+        document.getElementById("start-btn").innerText = "Snap & Predict (Every 3s)";
 
-        // ลบ window.requestAnimationFrame(loop) ออกทั้งหมด เพื่อไม่ให้ทำนายผลแบบ Real-time
-        
-        // สั่งให้กล้องอัปเดตภาพและทำนายผลทันทีกรณีเริ่มงานครั้งแรก
-        await processEveryThreeSeconds();
-
-        // ตั้งเวลาให้ฟังก์ชันทำงาน "เฉพาะ" ทุก ๆ 3 วินาทีเท่านั้น
-        predictInterval = setInterval(processEveryThreeSeconds, 3000);
+        // รอให้สัญญาณวิดีโอพร้อมสักครู่ แล้วเริ่มทำงานทันทีในครั้งแรก
+        setTimeout(async () => {
+            await captureAndPredict();
+            // ตั้งเวลาให้ทำการจับภาพและทำนายผล "ทุกๆ 3 วินาที" เท่านั้น
+            predictInterval = setInterval(captureAndPredict, 3000);
+        }, 1000);
     }
 
-    // ฟังก์ชันรวบยอด: อัปเดตเฟรมภาพกล้องใหม่ล่าสุด ณ วินาทีนั้น + สั่งทำนายผลทันที
-    async function processEveryThreeSeconds() {
-        if (webcam) {
-            webcam.update(); // ดึงภาพเฟรมปัจจุบันจากกล้อง ณ วินาทีที่ครบกำหนด[cite: 1]
-            await predict(); // สั่งทำนายผลภาพนั้น[cite: 1]
+    // ฟังก์ชันที่จะทำงานทุกๆ 3 วินาที
+    async function captureAndPredict() {
+        if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+            // ดึงภาพจากวิดีโอสด ณ วินาทีนั้น มาวาดลงบน Canvas (ภาพบนจอจะอัปเดตเป็นภาพนิ่งใหม่)
+            canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+            
+            // ส่ง Canvas ภาพนิ่งนี้ไปให้โมเดลประมวลผลทำนาย
+            await predict();
         }
     }
 
-    // ฟังก์ชันทำนายผลและแปลงค่าเป็นเปอร์เซ็นต์
+    // ฟังก์ชันคำนวณและแสดงผลเปอร์เซ็นต์
     async function predict() {
-        const prediction = await model.predict(webcam.canvas);[cite: 1]
-        for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+        // ประมวลผลโดยใช้ canvas ล่าสุดที่เพิ่งวาดเสร็จ
+        const prediction = await model.predict(canvasElement);
+        for (let i = 0; i < maxPredictions; i++) {
             const probabilityPercent = (prediction[i].probability * 100).toFixed(0);
             
             labelContainer.childNodes[i].innerHTML = `
